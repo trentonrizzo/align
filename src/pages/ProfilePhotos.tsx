@@ -29,10 +29,13 @@ export default function ProfilePhotos() {
       setLoading(true);
       setError(null);
 
+      const currentUser = user;
+      if (!currentUser) return;
+
       const { data, error } = await supabase
         .from("profile_photos")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", currentUser.id)
         .order("position", { ascending: true });
 
       if (cancelled) return;
@@ -76,6 +79,11 @@ export default function ProfilePhotos() {
   }
 
   async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
+    if (!user) {
+      setError("You must be logged in to upload photos.");
+      return;
+    }
+    const currentUser = user;
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -95,7 +103,7 @@ export default function ProfilePhotos() {
       for (let i = 0; i < toUpload.length; i++) {
         const file = toUpload[i];
         const ext = file.name.split(".").pop() || "jpg";
-        const path = `${user.id}/${uuidv4()}.${ext}`;
+        const path = `${currentUser.id}/${uuidv4()}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("profile-photos")
@@ -112,7 +120,7 @@ export default function ProfilePhotos() {
         const { data, error: insertError } = await supabase
           .from("profile_photos")
           .insert({
-            user_id: user.id,
+            user_id: currentUser.id,
             path,
             position,
             is_primary: isFirst,
@@ -139,6 +147,12 @@ export default function ProfilePhotos() {
   async function handleSetPrimary(photo: PhotoRow) {
     setError(null);
 
+    if (!user) {
+      setError("You must be logged in to update photos.");
+      return;
+    }
+    const currentUser = user;
+
     const { error } = await supabase
       .from("profile_photos")
       .update({ is_primary: true })
@@ -152,7 +166,7 @@ export default function ProfilePhotos() {
     const { error: clearError } = await supabase
       .from("profile_photos")
       .update({ is_primary: false })
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .neq("id", photo.id);
 
     if (clearError) {

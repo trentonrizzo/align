@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -34,10 +34,13 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
+      const currentUser = user;
+      if (!currentUser) return;
+
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", currentUser.id)
         .maybeSingle();
 
       if (cancelled) return;

@@ -43,17 +43,20 @@ export default function Profile() {
       setLoading(true);
       setError(null);
 
+      const currentUser = user;
+      if (!currentUser) return;
+
       const [{ data: profileData, error: profileError }, { data: photosData, error: photosError }] =
         await Promise.all([
           supabase
             .from("profiles")
             .select("*")
-            .eq("id", user.id)
+            .eq("id", currentUser.id)
             .maybeSingle(),
           supabase
             .from("profile_photos")
             .select("*")
-            .eq("user_id", user.id)
+            .eq("user_id", currentUser.id)
             .order("position", { ascending: true }),
         ]);
 
