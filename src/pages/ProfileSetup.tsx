@@ -33,7 +33,7 @@ export default function ProfileSetup() {
 
   async function handleAfterSave() {
     if (!user) {
-      navigate("/dashboard");
+      navigate("/discover", { replace: true });
       return;
     }
 
@@ -44,7 +44,7 @@ export default function ProfileSetup() {
       .maybeSingle();
 
     if (existing) {
-      navigate("/dashboard");
+      navigate("/discover", { replace: true });
       return;
     }
 
@@ -53,7 +53,7 @@ export default function ProfileSetup() {
       .select("user_id", { count: "exact", head: true });
 
     if (count == null || count >= OG_LIMIT) {
-      navigate("/dashboard");
+      navigate("/discover", { replace: true });
       return;
     }
 
@@ -72,7 +72,7 @@ export default function ProfileSetup() {
 
     setClaiming(false);
     setShowOgModal(false);
-    navigate("/dashboard");
+    navigate("/discover", { replace: true });
   }
 
   return (
