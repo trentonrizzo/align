@@ -65,13 +65,7 @@ export default function Dashboard() {
   }, [user, navigate]);
 
   if (!user) {
-    return (
-      <div style={{ padding: "2rem", maxWidth: 600, margin: "0 auto" }}>
-        <h1>Dashboard</h1>
-        <p>You are not logged in.</p>
-        <Link to="/login">Go to login</Link>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   function requestLogout() {

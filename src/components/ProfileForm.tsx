@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
-import { SearchableSelect, Option } from "./SearchableSelect";
+import { SearchableSelect } from "./SearchableSelect";
+import type { Option } from "./SearchableSelect";
 
 type ProfileFormProps = {
   onAfterSave: () => void;
@@ -78,10 +80,13 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
       setLoading(true);
       setError(null);
 
+      const currentUser = user;
+      if (!currentUser) return;
+
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", currentUser.id)
         .maybeSingle();
 
       if (cancelled) return;

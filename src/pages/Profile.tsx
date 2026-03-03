@@ -84,12 +84,7 @@ export default function Profile() {
   }, [user]);
 
   if (!user) {
-    return (
-      <div style={{ padding: "2rem", maxWidth: 640, margin: "0 auto" }}>
-        <h1>Profile</h1>
-        <p>You are not logged in.</p>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   function requestLogout() {

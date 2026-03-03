@@ -1,4 +1,5 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -54,12 +55,7 @@ export default function ProfilePhotos() {
   }, [user]);
 
   if (!user) {
-    return (
-      <div style={{ padding: "2rem", maxWidth: 640, margin: "0 auto" }}>
-        <h1>Manage photos</h1>
-        <p>You are not logged in.</p>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   function getPhotoUrl(path: string) {
