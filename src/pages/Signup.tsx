@@ -1,23 +1,24 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
-export default function Login() {
+export default function Signup() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signUp } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setSubmitting(true);
 
-    const { data, error } = await signIn({ email, password });
+    const { data, error } = await signUp({ email, password });
 
     if (error) {
       setError(error.message);
@@ -25,35 +26,21 @@ export default function Login() {
       return;
     }
 
-    const user = data.user;
-    if (!user) {
-      setError("Login failed.");
+    if (!data.session) {
+      setInfo(
+        "Check your email to confirm your account, then log in with your credentials."
+      );
       setSubmitting(false);
+      navigate("/login");
       return;
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      setError(profileError.message);
-      setSubmitting(false);
-      return;
-    }
-
-    if (!profile) {
-      navigate("/setup-profile");
-    } else {
-      navigate("/dashboard");
-    }
+    navigate("/setup-profile");
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: 380, margin: "0 auto" }}>
-      <h1 style={{ marginBottom: "1rem" }}>Log in</h1>
+    <div style={{ padding: "2rem", maxWidth: 400, margin: "0 auto" }}>
+      <h1 style={{ marginBottom: "1rem" }}>Create Account</h1>
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.75rem" }}>
         <label style={{ display: "grid", gap: "0.25rem" }}>
           <span>Email</span>
@@ -78,6 +65,9 @@ export default function Login() {
         {error && (
           <div style={{ color: "red", fontSize: "0.875rem" }}>{error}</div>
         )}
+        {info && (
+          <div style={{ color: "green", fontSize: "0.875rem" }}>{info}</div>
+        )}
         <button
           type="submit"
           disabled={submitting}
@@ -89,11 +79,11 @@ export default function Login() {
             cursor: "pointer",
           }}
         >
-          {submitting ? "Logging in..." : "Log in"}
+          {submitting ? "Creating account..." : "Sign up"}
         </button>
       </form>
       <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
-        Need an account? <Link to="/signup">Sign up</Link>
+        Already have an account? <Link to="/login">Log in</Link>
       </p>
       <p style={{ marginTop: "0.5rem", fontSize: "0.9rem" }}>
         <Link to="/">&larr; Back home</Link>
@@ -101,3 +91,4 @@ export default function Login() {
     </div>
   );
 }
+
