@@ -5,6 +5,8 @@ import Signup from "./pages/Signup";
 import ProfileSetup from "./pages/ProfileSetup";
 import Dashboard from "./pages/Dashboard";
 import Discover from "./pages/Discover";
+import AlignedPage from "./pages/AlignedPage";
+import ChatThreadPage from "./pages/ChatThreadPage";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import ProfilePhotos from "./pages/ProfilePhotos";
@@ -38,6 +40,8 @@ export default function App() {
         <Route path="/setup-profile" element={<ProfileSetup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/discover" element={<Discover />} />
+        <Route path="/aligned" element={<AlignedPage />} />
+        <Route path="/aligned/chat/:matchId" element={<ChatThreadPage />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/edit" element={<ProfileEdit />} />
         <Route path="/profile/photos" element={<ProfilePhotos />} />

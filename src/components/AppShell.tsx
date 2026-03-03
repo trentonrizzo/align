@@ -14,6 +14,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   const inDashboard = activePath.startsWith("/dashboard");
   const inDiscover = activePath.startsWith("/discover");
+  const inAligned = activePath.startsWith("/aligned");
   const inProfile = activePath.startsWith("/profile");
 
   return (
@@ -51,6 +52,7 @@ export default function AppShell({ children }: AppShellProps) {
         >
           <NavItem to="/dashboard" label="Dashboard" active={inDashboard} />
           <NavItem to="/discover" label="Discover" active={inDiscover} />
+          <NavItem to="/aligned" label="Aligned" active={inAligned} />
           <NavItem to="/profile" label="Profile" active={inProfile} />
         </nav>
       )}

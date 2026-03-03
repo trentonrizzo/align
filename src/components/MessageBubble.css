@@ -1,0 +1,37 @@
+.message-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.message-bubble--sent {
+  align-self: flex-end;
+  background: #111;
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+
+.message-bubble--received {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  color: #111;
+  border-bottom-left-radius: 6px;
+}
+
+.message-bubble__text {
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.message-bubble__time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+.message-bubble--received .message-bubble__time {
+  color: #999;
+}

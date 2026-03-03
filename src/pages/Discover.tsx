@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { fetchTraitOptionsGrouped, type TraitOptionByCategory } from "../lib/traitOptions";
 import "./discover.css";
 
 type DiscoverRow = {
@@ -61,6 +62,11 @@ export default function Discover() {
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [traitOptionsByCategory, setTraitOptionsByCategory] = useState<TraitOptionByCategory | null>(null);
+
+  useEffect(() => {
+    fetchTraitOptionsGrouped().then(setTraitOptionsByCategory).catch(() => {});
+  }, []);
 
   const filters = useMemo(() => {
     const f: Record<string, unknown> = {
@@ -393,32 +399,86 @@ export default function Discover() {
             <div className="drawer__section">
               <div className="drawer__hint">Hard filters (must match exactly)</div>
 
-              <label className="field">
-                <span>Belief</span>
-                <input
-                  placeholder="Atheist / Christian / ..."
-                  value={belief}
-                  onChange={(e) => setBelief(e.target.value)}
-                />
-              </label>
+              <div className="filter-pills-wrap">
+                {(belief || music || politics) && (
+                  <div className="filter-pills">
+                    {belief && (
+                      <span className="filter-pill">
+                        Belief: {belief}
+                        <button type="button" className="filter-pill-remove" onClick={() => setBelief("")} aria-label="Remove">×</button>
+                      </span>
+                    )}
+                    {music && (
+                      <span className="filter-pill">
+                        Music: {music}
+                        <button type="button" className="filter-pill-remove" onClick={() => setMusic("")} aria-label="Remove">×</button>
+                      </span>
+                    )}
+                    {politics && (
+                      <span className="filter-pill">
+                        Politics: {politics}
+                        <button type="button" className="filter-pill-remove" onClick={() => setPolitics("")} aria-label="Remove">×</button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
 
-              <label className="field">
-                <span>Music</span>
-                <input
-                  placeholder="Metal / Rap / ..."
-                  value={music}
-                  onChange={(e) => setMusic(e.target.value)}
-                />
-              </label>
-
-              <label className="field">
-                <span>Politics</span>
-                <input
-                  placeholder="Left / Right / Both suck / ..."
-                  value={politics}
-                  onChange={(e) => setPolitics(e.target.value)}
-                />
-              </label>
+              {traitOptionsByCategory && (
+                <>
+                  <label className="field">
+                    <span>Belief</span>
+                    <select
+                      className="drawer__select"
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v) setBelief(v);
+                        e.target.value = "";
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {(traitOptionsByCategory.belief ?? []).map((o) => (
+                        <option key={o.id} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Music</span>
+                    <select
+                      className="drawer__select"
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v) setMusic(v);
+                        e.target.value = "";
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {(traitOptionsByCategory.music ?? []).map((o) => (
+                        <option key={o.id} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Politics</span>
+                    <select
+                      className="drawer__select"
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v) setPolitics(v);
+                        e.target.value = "";
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {(traitOptionsByCategory.politics ?? []).map((o) => (
+                        <option key={o.id} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
 
               <div className="toggles">
                 <button
