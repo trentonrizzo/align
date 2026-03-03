@@ -12,13 +12,27 @@ export default function ProfileSetup() {
   const [bio, setBio] = useState("");
   const [gym, setGym] = useState(false);
   const [gamer, setGamer] = useState(false);
-  const [music, setMusic] = useState("");
+
+  const [belief, setBelief] = useState("");
+  const [musicPref, setMusicPref] = useState("");
+  const [politics, setPolitics] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRequiredErrors, setShowRequiredErrors] = useState(false);
+
+  const missingRequired =
+    belief.trim() === "" || musicPref.trim() === "" || politics.trim() === "";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setShowRequiredErrors(true);
+
+    if (missingRequired) {
+      return;
+    }
+
     setSubmitting(true);
 
     if (!user) {
@@ -34,7 +48,9 @@ export default function ProfileSetup() {
       bio,
       gym,
       gamer,
-      music,
+      belief,
+      music_pref: musicPref,
+      politics,
     });
 
     if (error) {
@@ -66,7 +82,7 @@ export default function ProfileSetup() {
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: 480, margin: "0 auto" }}>
+    <div style={{ padding: "2rem", maxWidth: 520, margin: "0 auto" }}>
       <h1 style={{ marginBottom: "1rem" }}>Set up your ALIGN profile</h1>
       <p style={{ marginBottom: "0.75rem", fontSize: "0.9rem" }}>
         Logged in as <strong>{user.email}</strong>
@@ -103,6 +119,89 @@ export default function ProfileSetup() {
             style={{ padding: "0.5rem", border: "1px solid #ccc" }}
           />
         </label>
+
+        <label style={{ display: "grid", gap: "0.25rem" }}>
+          <span>Belief / Religious affiliation *</span>
+          <select
+            value={belief}
+            onChange={(e) => setBelief(e.target.value)}
+            style={{ padding: "0.5rem", border: "1px solid #ccc" }}
+          >
+            <option value="">Select...</option>
+            <option value="Atheist">Atheist</option>
+            <option value="Atheist/Agnostic">Atheist/Agnostic</option>
+            <option value="Agnostic">Agnostic</option>
+            <option value="Non-religious">Non-religious</option>
+            <option value="Christian">Christian</option>
+            <option value="Muslim">Muslim</option>
+            <option value="Hindu">Hindu</option>
+            <option value="Buddhist">Buddhist</option>
+            <option value="Jewish">Jewish</option>
+            <option value="Spiritual (not religious)">
+              Spiritual (not religious)
+            </option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+          {showRequiredErrors && belief.trim() === "" && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              Please select a belief preference.
+            </span>
+          )}
+        </label>
+
+        <label style={{ display: "grid", gap: "0.25rem" }}>
+          <span>Music preference *</span>
+          <select
+            value={musicPref}
+            onChange={(e) => setMusicPref(e.target.value)}
+            style={{ padding: "0.5rem", border: "1px solid #ccc" }}
+          >
+            <option value="">Select...</option>
+            <option value="I don't care">I don't care</option>
+            <option value="Multi-genre">Multi-genre</option>
+            <option value="Pop">Pop</option>
+            <option value="Hip-hop/Rap">Hip-hop/Rap</option>
+            <option value="Rock">Rock</option>
+            <option value="Metal">Metal</option>
+            <option value="Deathcore/Death Metal">Deathcore/Death Metal</option>
+            <option value="Country">Country</option>
+            <option value="EDM">EDM</option>
+            <option value="Jazz">Jazz</option>
+            <option value="Classical">Classical</option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+          {showRequiredErrors && musicPref.trim() === "" && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              Please select a music preference.
+            </span>
+          )}
+        </label>
+
+        <label style={{ display: "grid", gap: "0.25rem" }}>
+          <span>Politics *</span>
+          <select
+            value={politics}
+            onChange={(e) => setPolitics(e.target.value)}
+            style={{ padding: "0.5rem", border: "1px solid #ccc" }}
+          >
+            <option value="">Select...</option>
+            <option value="Left / Liberal">Left / Liberal</option>
+            <option value="Center / Moderate">Center / Moderate</option>
+            <option value="Right / Conservative">Right / Conservative</option>
+            <option value="Apolitical">Apolitical</option>
+            <option value="Both suck">Both suck</option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+          {showRequiredErrors && politics.trim() === "" && (
+            <span style={{ color: "red", fontSize: "0.8rem" }}>
+              Please select a political preference.
+            </span>
+          )}
+        </label>
+
         <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <input
             type="checkbox"
@@ -119,27 +218,19 @@ export default function ProfileSetup() {
           />
           <span>Gamer</span>
         </label>
-        <label style={{ display: "grid", gap: "0.25rem" }}>
-          <span>Music</span>
-          <input
-            type="text"
-            value={music}
-            onChange={(e) => setMusic(e.target.value)}
-            style={{ padding: "0.5rem", border: "1px solid #ccc" }}
-          />
-        </label>
+
         {error && (
           <div style={{ color: "red", fontSize: "0.875rem" }}>{error}</div>
         )}
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || missingRequired}
           style={{
             padding: "0.5rem 0.75rem",
             border: "none",
             background: "#222",
             color: "#fff",
-            cursor: "pointer",
+            cursor: submitting || missingRequired ? "not-allowed" : "pointer",
           }}
         >
           {submitting ? "Saving..." : "Save profile"}

@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 export default function Home() {
   const { user, signOut } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  async function handleLogout() {
+  function requestLogout() {
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmLogout() {
     await signOut();
+    setConfirmOpen(false);
+  }
+
+  function handleCancelLogout() {
+    setConfirmOpen(false);
   }
 
   return (
@@ -69,7 +81,7 @@ export default function Home() {
               Dashboard
             </Link>
             <button
-              onClick={handleLogout}
+              onClick={requestLogout}
               style={{
                 marginTop: "0.5rem",
                 padding: "0.5rem 0.75rem",
@@ -83,6 +95,16 @@ export default function Home() {
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Log out?"
+        message="Are you sure you want to log out?"
+        cancelLabel="Cancel"
+        confirmLabel="Log out"
+        onCancel={handleCancelLogout}
+        onConfirm={handleConfirmLogout}
+      />
     </div>
   );
 }
