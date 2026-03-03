@@ -2,26 +2,29 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
-import { fetchTraitOptionsGrouped } from "../lib/traitOptions";
 import { TraitPillSelect } from "./TraitPillSelect";
 
 type ProfileFormProps = {
   onAfterSave: () => void;
 };
 
+type TraitSelectionSummary = {
+  selectedIds: string[];
+  byCategory: Record<string, string[]>;
+};
+
 export function ProfileForm({ onAfterSave }: ProfileFormProps) {
   const { user } = useAuth();
 
   const [username, setUsername] = useState("");
-  const [age, setAge] = useState<number | "">("");
+  const [age, setAge] = useState<string>("");
   const [bio, setBio] = useState("");
   const [gym, setGym] = useState(false);
   const [gamer, setGamer] = useState(false);
 
-  const [primaryTraits, setPrimaryTraits] = useState({
-    belief: "",
-    music: "",
-    politics: "",
+  const [traits, setTraits] = useState<TraitSelectionSummary>({
+    selectedIds: [],
+    byCategory: {},
   });
 
   const [loading, setLoading] = useState(true);
@@ -29,10 +32,14 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [showRequiredErrors, setShowRequiredErrors] = useState(false);
 
+  const hasCategory = (cat: string) => (traits.byCategory[cat]?.length ?? 0) > 0;
+
   const missingRequired =
-    primaryTraits.belief.trim() === "" ||
-    primaryTraits.music.trim() === "" ||
-    primaryTraits.politics.trim() === "";
+    username.trim() === "" ||
+    age.trim() === "" ||
+    !hasCategory("belief") ||
+    !hasCategory("music") ||
+    !hasCategory("politics");
 
   useEffect(() => {
     if (!user) return;
@@ -62,15 +69,10 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
 
       if (data) {
         setUsername(data.username ?? "");
-        setAge(data.age ?? "");
+        setAge(data.age != null ? String(data.age) : "");
         setBio(data.bio ?? "");
         setGym(Boolean(data.gym));
         setGamer(Boolean(data.gamer));
-        setPrimaryTraits({
-          belief: data.belief ?? "",
-          music: data.music_pref ?? "",
-          politics: data.politics ?? "",
-        });
       }
 
       setLoading(false);
@@ -82,39 +84,6 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
       cancelled = true;
     };
   }, [user]);
-
-  // One-time sync: if profile has belief/music_pref/politics but no profile_traits yet, seed them
-  useEffect(() => {
-    if (!user || !primaryTraits.belief || !primaryTraits.music || !primaryTraits.politics) return;
-
-    let cancelled = false;
-
-    async function syncTraits() {
-      const { data: existing } = await supabase
-        .from("profile_traits")
-        .select("trait_option_id")
-        .eq("user_id", user!.id)
-        .limit(1);
-      if (cancelled || (existing && existing.length > 0)) return;
-
-      const opts = await fetchTraitOptionsGrouped();
-      const toInsert: { user_id: string; trait_option_id: string }[] = [];
-      for (const [label, list] of [
-        [primaryTraits.belief, opts.belief ?? []],
-        [primaryTraits.music, opts.music ?? []],
-        [primaryTraits.politics, opts.politics ?? []],
-      ] as [string, { id: string; label: string }[]][]) {
-        const option = list.find((o) => o.label === label);
-        if (option) toInsert.push({ user_id: user!.id, trait_option_id: option.id });
-      }
-      if (toInsert.length) await supabase.from("profile_traits").upsert(toInsert, { onConflict: "user_id,trait_option_id" });
-    }
-
-    syncTraits();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, primaryTraits.belief, primaryTraits.music, primaryTraits.politics]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -132,22 +101,50 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
 
     setSubmitting(true);
 
-    const { error: err } = await supabase.from("profiles").upsert({
+    const beliefLabel = traits.byCategory.belief?.[0] ?? "";
+    const musicLabel = traits.byCategory.music?.[0] ?? "";
+    const politicsLabel = traits.byCategory.politics?.[0] ?? "";
+
+    const { error: profileError } = await supabase.from("profiles").upsert({
       id: user.id,
       username,
-      age: age === "" ? null : Number(age),
+      age: age.trim() === "" ? null : Number(age),
       bio,
       gym,
       gamer,
-      belief: primaryTraits.belief,
-      music_pref: primaryTraits.music,
-      politics: primaryTraits.politics,
+      belief: beliefLabel,
+      music_pref: musicLabel,
+      politics: politicsLabel,
     });
 
-    if (err) {
-      setError(err.message);
+    if (profileError) {
+      setError(profileError.message);
       setSubmitting(false);
       return;
+    }
+
+    const { error: deleteError } = await supabase
+      .from("profile_traits")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    if (traits.selectedIds.length > 0) {
+      const rows = traits.selectedIds.map((id) => ({
+        user_id: user.id,
+        trait_option_id: id,
+      }));
+      const { error: insertError } = await supabase.from("profile_traits").insert(rows);
+      if (insertError) {
+        setError(insertError.message);
+        setSubmitting(false);
+        return;
+      }
     }
 
     setSubmitting(false);
@@ -184,9 +181,7 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
           type="number"
           min={18}
           value={age}
-          onChange={(e) =>
-            setAge(e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setAge(e.target.value)}
           style={{ padding: "0.5rem", border: "1px solid #ccc" }}
         />
       </label>
@@ -202,12 +197,7 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
 
       <TraitPillSelect
         userId={user.id}
-        onTraitsChange={(t) =>
-          setPrimaryTraits((prev) => {
-            if (!t.belief && !t.music && !t.politics && (prev.belief || prev.music || prev.politics)) return prev;
-            return { belief: t.belief ?? prev.belief, music: t.music ?? prev.music, politics: t.politics ?? prev.politics };
-          })
-        }
+        onSelectionChange={(info) => setTraits(info)}
       />
 
       {showRequiredErrors && missingRequired && (

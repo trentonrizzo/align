@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useProfileCompletion } from "../hooks/useProfileCompletion";
 
 type AppShellProps = {
   children?: ReactNode;
@@ -11,11 +12,18 @@ export default function AppShell({ children }: AppShellProps) {
   const location = useLocation();
 
   const activePath = location.pathname;
+  const inSetup = activePath.startsWith("/setup-profile");
+
+  const { loading: profileLoading, complete } = useProfileCompletion(user?.id ?? null);
 
   const inDashboard = activePath.startsWith("/dashboard");
   const inDiscover = activePath.startsWith("/discover");
   const inAligned = activePath.startsWith("/aligned");
   const inProfile = activePath.startsWith("/profile");
+
+  if (user && !profileLoading && !complete && !inSetup) {
+    return <Navigate to="/setup-profile" replace />;
+  }
 
   return (
     <div
@@ -28,13 +36,13 @@ export default function AppShell({ children }: AppShellProps) {
       <main
         style={{
           flex: 1,
-          paddingBottom: user ? "3.5rem" : 0,
+          paddingBottom: user && complete ? "3.5rem" : 0,
         }}
       >
         {children ?? <Outlet />}
       </main>
 
-      {user && (
+      {user && complete && (
         <nav
           style={{
             position: "fixed",

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
 import {
   fetchTraitOptionsGrouped,
   fetchProfileTraits,
@@ -9,12 +8,17 @@ import {
 } from "../lib/traitOptions";
 import "./TraitPillSelect.css";
 
-type TraitPillSelectProps = {
-  userId: string;
-  onTraitsChange?: (traits: { belief: string; music: string; politics: string }) => void;
+type TraitSelectionInfo = {
+  selectedIds: string[];
+  byCategory: Record<string, string[]>;
 };
 
-export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps) {
+type TraitPillSelectProps = {
+  userId: string;
+  onSelectionChange?: (info: TraitSelectionInfo) => void;
+};
+
+export function TraitPillSelect({ userId, onSelectionChange }: TraitPillSelectProps) {
   const [optionsByCategory, setOptionsByCategory] = useState<TraitOptionByCategory | null>(null);
   const [selected, setSelected] = useState<ProfileTraitRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,45 +53,22 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
   }, [userId]);
 
   useEffect(() => {
-    if (!onTraitsChange) return;
-    const byCat: Record<string, string> = {};
+    if (!onSelectionChange) return;
+    const byCategory: Record<string, string[]> = {};
+    const selectedIds: string[] = [];
+
     for (const row of selected) {
-      const opt = row.trait_options ?? (row as unknown as { trait_options?: { category: string; label: string } }).trait_options;
-      if (opt?.category && !(opt.category in byCat)) byCat[opt.category] = opt.label;
+      const opt =
+        row.trait_options ??
+        (row as unknown as { trait_options?: { category: string; label: string } }).trait_options;
+      if (!opt?.category) continue;
+      selectedIds.push(row.trait_option_id);
+      if (!byCategory[opt.category]) byCategory[opt.category] = [];
+      byCategory[opt.category].push(opt.label);
     }
-    onTraitsChange({
-      belief: byCat.belief ?? "",
-      music: byCat.music ?? "",
-      politics: byCat.politics ?? "",
-    });
-  }, [selected, onTraitsChange]);
 
-  async function addTrait(traitOptionId: string) {
-    const { error: err } = await supabase
-      .from("profile_traits")
-      .insert({ user_id: userId, trait_option_id: traitOptionId });
-
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    const opt = findOptionById(traitOptionId);
-    if (opt) setSelected((prev) => [...prev, { user_id: userId, trait_option_id: traitOptionId, trait_options: opt }]);
-  }
-
-  async function removeTrait(traitOptionId: string) {
-    const { error: err } = await supabase
-      .from("profile_traits")
-      .delete()
-      .eq("user_id", userId)
-      .eq("trait_option_id", traitOptionId);
-
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    setSelected((prev) => prev.filter((t) => t.trait_option_id !== traitOptionId));
-  }
+    onSelectionChange({ selectedIds, byCategory });
+  }, [selected, onSelectionChange]);
 
   function findOptionById(id: string): TraitOption | null {
     if (!optionsByCategory) return null;
@@ -100,8 +81,32 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
 
   function getSelectedForCategory(category: string): ProfileTraitRow[] {
     return selected.filter((t) => {
-      const opt = t.trait_options ?? (t as unknown as { trait_options?: { category: string } }).trait_options;
+      const opt =
+        t.trait_options ??
+        (t as unknown as { trait_options?: { category: string } }).trait_options;
       return opt?.category === category;
+    });
+  }
+
+  function toggleTrait(traitOptionId: string, category: string) {
+    setSelected((prev) => {
+      const exists = prev.some((t) => t.trait_option_id === traitOptionId);
+      if (exists) {
+        return prev.filter((t) => t.trait_option_id !== traitOptionId);
+      }
+      const opt = findOptionById(traitOptionId);
+      if (!opt) return prev;
+      // single-select per category: remove others in same category
+      const withoutCategory = prev.filter((t) => {
+        const o =
+          t.trait_options ??
+          (t as unknown as { trait_options?: { category: string } }).trait_options;
+        return o?.category !== category;
+      });
+      return [
+        ...withoutCategory,
+        { user_id: userId, trait_option_id: traitOptionId, trait_options: opt },
+      ];
     });
   }
 
@@ -121,7 +126,7 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
       {categories.map((category) => {
         const opts = optionsByCategory[category] ?? [];
         const selectedInCat = getSelectedForCategory(category);
-        const alreadySelectedIds = new Set(selectedInCat.map((t) => t.trait_option_id));
+        const selectedIdInCat = selectedInCat[0]?.trait_option_id ?? null;
 
         return (
           <div key={category} className="trait-pill-section">
@@ -136,7 +141,7 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
                     <button
                       type="button"
                       className="trait-pill-remove"
-                      onClick={() => removeTrait(t.trait_option_id)}
+                      onClick={() => toggleTrait(t.trait_option_id, category)}
                       aria-label="Remove"
                     >
                       ×
@@ -147,21 +152,18 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
             </div>
             <select
               className="trait-pill-dropdown"
-              value=""
+              value={selectedIdInCat ?? ""}
               onChange={(e) => {
                 const id = e.target.value;
-                if (id) addTrait(id);
-                e.target.value = "";
+                if (id) toggleTrait(id, category);
               }}
             >
-              <option value="">Add...</option>
-              {opts
-                .filter((o) => !alreadySelectedIds.has(o.id))
-                .map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
+              <option value="">Select...</option>
+              {opts.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
         );
@@ -169,3 +171,4 @@ export function TraitPillSelect({ userId, onTraitsChange }: TraitPillSelectProps
     </div>
   );
 }
+
