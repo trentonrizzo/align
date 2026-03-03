@@ -10,7 +10,7 @@ export type TraitOptionByCategory = Record<string, TraitOption[]>;
 export async function fetchTraitOptionsGrouped(): Promise<TraitOptionByCategory> {
   const { data, error } = await supabase
     .from("trait_options")
-    .select("category, value, label")
+    .select("category, label")
     .order("category", { ascending: true })
     .order("label", { ascending: true });
 
@@ -19,10 +19,11 @@ export async function fetchTraitOptionsGrouped(): Promise<TraitOptionByCategory>
   const byCategory: TraitOptionByCategory = {};
   for (const row of data ?? []) {
     const cat = row.category as string;
+    const label = row.label as string;
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push({
-      value: row.value as string,
-      label: row.label as string,
+      value: label,
+      label,
     });
   }
   return byCategory;

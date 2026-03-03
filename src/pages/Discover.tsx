@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { fetchTraitOptionsGrouped, type TraitOptionByCategory } from "../lib/traitOptions";
@@ -47,6 +48,7 @@ function badgeTone(pct: number) {
 
 export default function Discover() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<DiscoverRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -155,6 +157,18 @@ export default function Discover() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, user?.id]);
 
+  async function handleAlign(toUserId: string) {
+    if (!user) return;
+    const { error } = await supabase.from("align_requests").insert({
+      from_user_id: user.id,
+      to_user_id: toUserId,
+      status: "pending",
+    });
+    if (!error) {
+      setRows((prev) => prev.filter((r) => r.user_id !== toUserId));
+    }
+  }
+
   async function toggleFavorite(targetUserId: string, isFav: boolean) {
     if (!user) return;
 
@@ -162,9 +176,10 @@ export default function Discover() {
       prev.map((r) => (r.user_id === targetUserId ? { ...r, is_favorited: !isFav } : r))
     );
 
+    const favTable = "favorites";
     if (!isFav) {
       const { error } = await supabase
-        .from("profile_favorites")
+        .from(favTable)
         .insert({ user_id: user.id, target_user_id: targetUserId });
       if (error) {
         setRows((prev) =>
@@ -173,7 +188,7 @@ export default function Discover() {
       }
     } else {
       const { error } = await supabase
-        .from("profile_favorites")
+        .from(favTable)
         .delete()
         .eq("user_id", user.id)
         .eq("target_user_id", targetUserId);
@@ -276,17 +291,26 @@ export default function Discover() {
 
               <div className="ctaRow">
                 <button
+                  className="btn"
+                  onClick={() => handleAlign(hero.user_id)}
+                >
+                  Align
+                </button>
+                <button
                   className="btn btn--ghost"
                   onClick={() => toggleFavorite(hero.user_id, hero.is_favorited)}
                 >
                   {hero.is_favorited ? "★ Favorited" : "☆ Favorite"}
                 </button>
-
                 <button
-                  className="btn"
-                  onClick={() => {
-                    setRows((prev) => prev.slice(1));
-                  }}
+                  className="btn btn--ghost"
+                  onClick={() => navigate(`/profile/${hero.user_id}`)}
+                >
+                  View Profile
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  onClick={() => setRows((prev) => prev.slice(1))}
                 >
                   Next
                 </button>
@@ -298,7 +322,19 @@ export default function Discover() {
             <div className="list__title">More nearby</div>
 
             {rows.slice(1, 8).map((r) => (
-              <div className="mini" key={r.user_id}>
+              <div
+                className="mini"
+                key={r.user_id}
+                onClick={() => navigate(`/profile/${r.user_id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(`/profile/${r.user_id}`);
+                  }
+                }}
+              >
                 <div className="mini__img">
                   {r.photos?.[0] && getPhotoUrl(r.photos[0]) ? (
                     <img src={getPhotoUrl(r.photos[0])!} alt={r.username ?? "Profile"} />
@@ -325,7 +361,14 @@ export default function Discover() {
                   </div>
                 </div>
 
-                <div className="mini__right">
+                <div className="mini__right" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="iconBtn"
+                    title="Align"
+                    onClick={() => handleAlign(r.user_id)}
+                  >
+                    ♥
+                  </button>
                   <button
                     className="iconBtn"
                     title="Favorite"

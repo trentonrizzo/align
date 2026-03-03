@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useUnreadAlignedCount } from "../hooks/useUnreadAlignedCount";
+import { useUnreadNotificationsCount } from "../hooks/useUnreadNotificationsCount";
 
 type AppShellProps = {
   children?: ReactNode;
@@ -9,6 +11,8 @@ type AppShellProps = {
 export default function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const location = useLocation();
+  const unreadAligned = useUnreadAlignedCount(user?.id);
+  const unreadNotifications = useUnreadNotificationsCount(user?.id);
 
   const activePath = location.pathname;
   const inSetup = activePath.startsWith("/setup-profile");
@@ -16,7 +20,9 @@ export default function AppShell({ children }: AppShellProps) {
   const inDashboard = activePath.startsWith("/dashboard");
   const inDiscover = activePath.startsWith("/discover");
   const inAligned = activePath.startsWith("/aligned");
-  const inProfile = activePath.startsWith("/profile");
+  const inFavorites = activePath.startsWith("/favorites");
+  const inNotifications = activePath.startsWith("/notifications");
+  const inProfile = activePath === "/profile" || activePath.startsWith("/profile/edit") || activePath.startsWith("/profile/photos");
 
   return (
     <div
@@ -53,7 +59,9 @@ export default function AppShell({ children }: AppShellProps) {
         >
           <NavItem to="/dashboard" label="Dashboard" active={inDashboard} />
           <NavItem to="/discover" label="Discover" active={inDiscover} />
-          <NavItem to="/aligned" label="Aligned" active={inAligned} />
+          <NavItem to="/aligned" label="Aligned" active={inAligned} badge={unreadAligned} />
+          <NavItem to="/favorites" label="Favorites" active={inFavorites} />
+          <NavItem to="/notifications" label="Notifications" active={inNotifications} badge={unreadNotifications} />
           <NavItem to="/profile" label="Profile" active={inProfile} />
         </nav>
       )}
@@ -65,9 +73,10 @@ type NavItemProps = {
   to: string;
   label: string;
   active: boolean;
+  badge?: number;
 };
 
-function NavItem({ to, label, active }: NavItemProps) {
+function NavItem({ to, label, active, badge = 0 }: NavItemProps) {
   return (
     <Link
       to={to}
@@ -82,6 +91,7 @@ function NavItem({ to, label, active }: NavItemProps) {
         textDecoration: "none",
         color: active ? "#111" : "#777",
         fontWeight: active ? 600 : 400,
+        position: "relative",
       }}
     >
       <span
@@ -95,6 +105,29 @@ function NavItem({ to, label, active }: NavItemProps) {
           display: "inline-block",
         }}
       />
+      {badge > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            top: -2,
+            right: "50%",
+            transform: "translate(8px, 0)",
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            borderRadius: 8,
+            background: "#e53935",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
       <span>{label}</span>
     </Link>
   );

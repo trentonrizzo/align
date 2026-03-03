@@ -8,26 +8,37 @@ import "./ChatThreadPage.css";
 
 type ChatMessage = {
   id: string;
-  thread_id: string;
+  chat_id?: string;
+  thread_id?: string;
   sender_id: string;
-  message: string;
+  body?: string;
+  message?: string;
+  read_at: string | null;
   created_at: string;
 };
+
+const PRESENCE_CHANNEL = "chat-typing";
 
 export default function ChatThreadPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const uid = user?.id;
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [useNewSchema, setUseNewSchema] = useState(true);
   const [otherUsername, setOtherUsername] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [otherTyping, setOtherTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const getMessageText = (msg: ChatMessage) => msg.body ?? msg.message ?? "";
+  const tableName = useNewSchema ? "messages" : "chat_messages";
+  const idColumn = useNewSchema ? "chat_id" : "thread_id";
 
   useEffect(() => {
-    const uid = user?.id;
     if (!uid || !matchId) return;
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -57,38 +68,77 @@ export default function ChatThreadPage() {
         .maybeSingle();
       setOtherUsername(profile?.username ?? "Unknown");
 
-      let { data: thread, error: threadErr } = await supabase
-        .from("chat_threads")
+      let chatOrThreadId: string | null = null;
+      let schemaNew = true;
+
+      const { data: chat, error: chatErr } = await supabase
+        .from("chats")
         .select("id")
         .eq("match_id", match.id)
         .maybeSingle();
 
-      if (!thread && !threadErr) {
+      if (chat?.id) {
+        chatOrThreadId = chat.id;
+      } else if (!chatErr) {
         const { data: inserted, error: insertErr } = await supabase
-          .from("chat_threads")
+          .from("chats")
           .insert({ match_id: match.id })
           .select("id")
           .single();
-        if (insertErr) {
-          setError(insertErr.message);
-          setLoading(false);
-          return;
+        if (!insertErr && inserted?.id) {
+          chatOrThreadId = inserted.id;
         }
-        thread = inserted;
       }
 
-      if (!thread?.id) {
+      if (!chatOrThreadId) {
+        const { data: thread, error: threadErr } = await supabase
+          .from("chat_threads")
+          .select("id")
+          .eq("match_id", match.id)
+          .maybeSingle();
+
+        if (thread?.id) {
+          chatOrThreadId = thread.id;
+          schemaNew = false;
+        } else if (!threadErr) {
+          const { data: inserted, error: insertErr } = await supabase
+            .from("chat_threads")
+            .insert({ match_id: match.id })
+            .select("id")
+            .single();
+          if (!insertErr && inserted?.id) {
+            chatOrThreadId = inserted.id;
+            schemaNew = false;
+          }
+        }
+      }
+
+      setUseNewSchema(schemaNew);
+      setChatId(chatOrThreadId);
+
+      if (!chatOrThreadId) {
         setError("Could not open chat");
         setLoading(false);
         return;
       }
 
-      setThreadId(thread.id);
+      if (schemaNew) {
+        await supabase
+          .from("messages")
+          .update({ read_at: new Date().toISOString() })
+          .eq("chat_id", chatOrThreadId)
+          .neq("sender_id", uid)
+          .is("read_at", null);
+      }
+
+      const selectCols = schemaNew
+        ? "id, chat_id, sender_id, body, read_at, created_at"
+        : "id, thread_id, sender_id, message, created_at";
 
       const { data: msgs, error: msgsErr } = await supabase
-        .from("chat_messages")
-        .select("id, thread_id, sender_id, message, created_at")
-        .eq("thread_id", thread.id)
+        .from(tableName)
+        .select(selectCols)
+        .eq(idColumn, chatOrThreadId)
         .order("created_at", { ascending: true });
 
       if (msgsErr) {
@@ -96,24 +146,71 @@ export default function ChatThreadPage() {
         setLoading(false);
         return;
       }
-      setMessages((msgs ?? []) as ChatMessage[]);
+
+      const rawMsgs = (msgs ?? []) as unknown[];
+      const mapped: ChatMessage[] = rawMsgs.map((m) => {
+        const r = m as Record<string, unknown>;
+        return {
+          id: r.id as string,
+          chat_id: r.chat_id as string | undefined,
+          thread_id: r.thread_id as string | undefined,
+          sender_id: r.sender_id as string,
+          body: r.body as string | undefined,
+          message: r.message as string | undefined,
+          read_at: schemaNew ? (r.read_at as string | null) : null,
+          created_at: r.created_at as string,
+        };
+      });
+      setMessages(mapped);
 
       channel = supabase
-        .channel(`chat:${thread.id}`)
+        .channel(`chat:${chatOrThreadId}`)
         .on(
           "postgres_changes",
           {
             event: "INSERT",
             schema: "public",
-            table: "chat_messages",
-            filter: `thread_id=eq.${thread.id}`,
+            table: tableName,
+            filter: `${idColumn}=eq.${chatOrThreadId}`,
           },
           (payload) => {
             const newRow = payload.new as ChatMessage;
             setMessages((prev) => [...prev, newRow]);
           }
         )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: tableName,
+            filter: `${idColumn}=eq.${chatOrThreadId}`,
+          },
+          () => {
+            setMessages((prev) => [...prev]);
+          }
+        )
         .subscribe();
+
+      const presenceChannel = supabase.channel(`${PRESENCE_CHANNEL}:${chatOrThreadId}`, {
+        config: { presence: { key: uid } },
+      });
+
+      presenceChannel
+        .on("presence", { event: "sync" }, () => {
+          const state = presenceChannel.presenceState();
+          const others = Object.entries(state)
+            .filter(([k]) => k !== uid)
+            .flatMap(([, presences]) => presences as { typing?: boolean }[]);
+          setOtherTyping(others.some((p) => p?.typing === true));
+        })
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await presenceChannel.track({ typing: false, user_id: uid });
+          }
+        });
+
+      presenceChannelRef.current = presenceChannel;
 
       setLoading(false);
     }
@@ -122,6 +219,10 @@ export default function ChatThreadPage() {
 
     return () => {
       if (channel) supabase.removeChannel(channel);
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.untrack();
+        supabase.removeChannel(presenceChannelRef.current);
+      }
     };
   }, [user?.id, matchId]);
 
@@ -129,16 +230,33 @@ export default function ChatThreadPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+
+  function handleTypingStart() {
+    presenceChannelRef.current?.track({ typing: true });
+  }
+
+  function handleTypingStop() {
+    presenceChannelRef.current?.track({ typing: false });
+  }
+
   async function handleSend(message: string) {
-    if (!uid || !threadId) return;
+    if (!uid || !chatId) return;
 
-    const { error: insertErr } = await supabase.from("chat_messages").insert({
-      thread_id: threadId,
-      sender_id: uid,
-      message,
-    });
-
-    if (insertErr) setError(insertErr.message);
+    if (useNewSchema) {
+      const { error: insertErr } = await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: uid,
+        body: message,
+      });
+      if (insertErr) setError(insertErr.message);
+    } else {
+      const { error: insertErr } = await supabase.from("chat_messages").insert({
+        thread_id: chatId,
+        sender_id: uid,
+        message,
+      });
+      if (insertErr) setError(insertErr.message);
+    }
   }
 
   if (!user) {
@@ -160,7 +278,19 @@ export default function ChatThreadPage() {
         >
           ←
         </button>
-        <h1 className="chat-thread-title">{otherUsername ?? "Chat"}</h1>
+        <div className="chat-thread-header-info">
+          <h1 className="chat-thread-title">{otherUsername ?? "Chat"}</h1>
+          {otherTyping && (
+            <span className="chat-thread-typing">
+              User typing
+              <span className="chat-thread-typing-dots">
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </span>
+            </span>
+          )}
+        </div>
       </header>
 
       {error && <div className="chat-thread-error">{error}</div>}
@@ -173,14 +303,19 @@ export default function ChatThreadPage() {
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
-                message={msg.message}
+                message={getMessageText(msg)}
                 isSent={msg.sender_id === uid}
                 createdAt={msg.created_at}
               />
             ))}
             <div ref={messagesEndRef} />
           </div>
-          <MessageInput onSend={handleSend} disabled={!threadId} />
+          <MessageInput
+            onSend={handleSend}
+            disabled={!chatId}
+            onFocus={handleTypingStart}
+            onBlur={handleTypingStop}
+          />
         </>
       )}
     </div>

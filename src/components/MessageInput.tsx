@@ -5,9 +5,11 @@ import "./MessageInput.css";
 type MessageInputProps = {
   onSend: (message: string) => void;
   disabled?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
-export function MessageInput({ onSend, disabled }: MessageInputProps) {
+export function MessageInput({ onSend, disabled, onFocus, onBlur }: MessageInputProps) {
   const [value, setValue] = useState("");
 
   function handleSubmit(e: FormEvent) {
@@ -26,6 +28,8 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         placeholder="Message..."
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
         disabled={disabled}
       />
       <button type="submit" className="message-input__btn" disabled={disabled || !value.trim()}>

@@ -7,7 +7,10 @@ import Dashboard from "./pages/Dashboard";
 import Discover from "./pages/Discover";
 import AlignedPage from "./pages/AlignedPage";
 import ChatThreadPage from "./pages/ChatThreadPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import Profile from "./pages/Profile";
+import ProfileViewerPage from "./pages/ProfileViewerPage";
 import ProfileEdit from "./pages/ProfileEdit";
 import ProfilePhotos from "./pages/ProfilePhotos";
 import AppShell from "./components/AppShell";
@@ -53,7 +56,10 @@ export default function App() {
         <Route path="/discover" element={<Discover />} />
         <Route path="/aligned" element={<AlignedPage />} />
         <Route path="/aligned/chat/:matchId" element={<ChatThreadPage />} />
+        <Route path="/favorites" element={<FavoritesPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<ProfileViewerPage />} />
         <Route path="/profile/edit" element={<ProfileEdit />} />
         <Route path="/profile/photos" element={<ProfilePhotos />} />
       </Route>

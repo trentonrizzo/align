@@ -10,6 +10,7 @@ export default function ProfileSetup() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showOgModal, setShowOgModal] = useState(false);
+  const [showSavedPill, setShowSavedPill] = useState(false);
   const [claiming, setClaiming] = useState(false);
 
   if (!user) {
@@ -33,7 +34,11 @@ export default function ProfileSetup() {
 
   async function handleAfterSave() {
     if (!user) {
-      navigate("/discover", { replace: true });
+      setShowSavedPill(true);
+      setTimeout(() => {
+        setShowSavedPill(false);
+        navigate("/dashboard", { replace: true });
+      }, 1200);
       return;
     }
 
@@ -44,7 +49,11 @@ export default function ProfileSetup() {
       .maybeSingle();
 
     if (existing) {
-      navigate("/discover", { replace: true });
+      setShowSavedPill(true);
+      setTimeout(() => {
+        setShowSavedPill(false);
+        navigate("/dashboard", { replace: true });
+      }, 1200);
       return;
     }
 
@@ -53,7 +62,11 @@ export default function ProfileSetup() {
       .select("user_id", { count: "exact", head: true });
 
     if (count == null || count >= OG_LIMIT) {
-      navigate("/discover", { replace: true });
+      setShowSavedPill(true);
+      setTimeout(() => {
+        setShowSavedPill(false);
+        navigate("/dashboard", { replace: true });
+      }, 1200);
       return;
     }
 
@@ -72,11 +85,34 @@ export default function ProfileSetup() {
 
     setClaiming(false);
     setShowOgModal(false);
-    navigate("/discover", { replace: true });
+    setShowSavedPill(true);
+    setTimeout(() => {
+      setShowSavedPill(false);
+      navigate("/dashboard", { replace: true });
+    }, 1200);
   }
 
   return (
     <>
+      {showSavedPill && (
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "10px 20px",
+            background: "#111",
+            color: "#fff",
+            borderRadius: 999,
+            fontWeight: 700,
+            zIndex: 9999,
+            animation: "fadeInOut 1.2s ease-out",
+          }}
+        >
+          Profile Saved
+        </div>
+      )}
       <div style={{ padding: "2rem", maxWidth: 520, margin: "0 auto" }}>
         <h1 style={{ marginBottom: "1rem" }}>Set up your ALIGN profile</h1>
         <p style={{ marginBottom: "0.75rem", fontSize: "0.9rem" }}>

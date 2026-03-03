@@ -82,6 +82,20 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+
+@media (max-width: 480px) {
+  button, .btn, .iconBtn, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
