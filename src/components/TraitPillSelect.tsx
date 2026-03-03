@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  fetchTraitOptionsGrouped,
-  fetchProfileTraits,
-  type TraitOptionByCategory,
-  type ProfileTraitsResult,
-} from "../lib/traitOptions";
+import { fetchTraitOptionsGrouped, type TraitOptionByCategory } from "../lib/traitOptions";
 import "./TraitPillSelect.css";
 
 type TraitPillSelectProps = {
@@ -26,16 +21,8 @@ export function TraitPillSelect({ userId, onSelectionChange }: TraitPillSelectPr
     setLoading(true);
     setError(null);
     try {
-      const [opts, traits]: [TraitOptionByCategory, ProfileTraitsResult] = await Promise.all([
-        fetchTraitOptionsGrouped(),
-        fetchProfileTraits(userId),
-      ]);
+      const opts: TraitOptionByCategory = await fetchTraitOptionsGrouped();
       setOptionsByCategory(opts);
-      setSelectedByCategory(
-        Object.fromEntries(
-          Object.entries(traits.byCategory).map(([k, v]) => [k, v ?? null])
-        )
-      );
     } catch (e) {
       setError(
         e instanceof Error
