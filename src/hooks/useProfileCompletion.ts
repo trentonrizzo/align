@@ -42,7 +42,7 @@ export function useProfileCompletion(userId: string | null | undefined): Profile
 
       const { data: traits, error: traitsError } = await supabase
         .from("profile_traits")
-        .select("trait_options(category)")
+        .select("category")
         .eq("user_id", userId);
 
       if (cancelled) return;
@@ -54,8 +54,7 @@ export function useProfileCompletion(userId: string | null | undefined): Profile
 
       const categories = new Set<string>();
       for (const row of traits ?? []) {
-        const cat = (row as { trait_options?: { category?: string } | null }).trait_options
-          ?.category;
+        const cat = (row as { category?: string }).category;
         if (cat) categories.add(cat);
       }
 

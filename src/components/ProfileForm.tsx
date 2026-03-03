@@ -9,8 +9,7 @@ type ProfileFormProps = {
 };
 
 type TraitSelectionSummary = {
-  selectedIds: string[];
-  byCategory: Record<string, string[]>;
+  byCategory: Record<string, { value: string; label: string } | null>;
 };
 
 export function ProfileForm({ onAfterSave }: ProfileFormProps) {
@@ -23,7 +22,6 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
   const [gamer, setGamer] = useState(false);
 
   const [traits, setTraits] = useState<TraitSelectionSummary>({
-    selectedIds: [],
     byCategory: {},
   });
 
@@ -32,7 +30,7 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [showRequiredErrors, setShowRequiredErrors] = useState(false);
 
-  const hasCategory = (cat: string) => (traits.byCategory[cat]?.length ?? 0) > 0;
+  const hasCategory = (cat: string) => Boolean(traits.byCategory[cat]?.value);
 
   const missingRequired =
     username.trim() === "" ||
@@ -101,9 +99,13 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
 
     setSubmitting(true);
 
-    const beliefLabel = traits.byCategory.belief?.[0] ?? "";
-    const musicLabel = traits.byCategory.music?.[0] ?? "";
-    const politicsLabel = traits.byCategory.politics?.[0] ?? "";
+    const beliefTrait = traits.byCategory.belief;
+    const musicTrait = traits.byCategory.music;
+    const politicsTrait = traits.byCategory.politics;
+
+    const beliefLabel = beliefTrait?.label ?? "";
+    const musicLabel = musicTrait?.label ?? "";
+    const politicsLabel = politicsTrait?.label ?? "";
 
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: user.id,
@@ -123,25 +125,17 @@ export function ProfileForm({ onAfterSave }: ProfileFormProps) {
       return;
     }
 
-    const { error: deleteError } = await supabase
-      .from("profile_traits")
-      .delete()
-      .eq("user_id", user.id);
+    const upsertRows: { user_id: string; category: string; value: string }[] = [];
+    if (beliefTrait) upsertRows.push({ user_id: user.id, category: "belief", value: beliefTrait.value });
+    if (musicTrait) upsertRows.push({ user_id: user.id, category: "music", value: musicTrait.value });
+    if (politicsTrait) upsertRows.push({ user_id: user.id, category: "politics", value: politicsTrait.value });
 
-    if (deleteError) {
-      setError(deleteError.message);
-      setSubmitting(false);
-      return;
-    }
-
-    if (traits.selectedIds.length > 0) {
-      const rows = traits.selectedIds.map((id) => ({
-        user_id: user.id,
-        trait_option_id: id,
-      }));
-      const { error: insertError } = await supabase.from("profile_traits").insert(rows);
-      if (insertError) {
-        setError(insertError.message);
+    if (upsertRows.length > 0) {
+      const { error: traitsError } = await supabase
+        .from("profile_traits")
+        .upsert(upsertRows, { onConflict: "user_id,category" });
+      if (traitsError) {
+        setError(traitsError.message);
         setSubmitting(false);
         return;
       }

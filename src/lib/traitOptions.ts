@@ -1,8 +1,7 @@
 import { supabase } from "./supabase";
 
 export type TraitOption = {
-  id: string;
-  category: string;
+  value: string;
   label: string;
 };
 
@@ -11,9 +10,9 @@ export type TraitOptionByCategory = Record<string, TraitOption[]>;
 export async function fetchTraitOptionsGrouped(): Promise<TraitOptionByCategory> {
   const { data, error } = await supabase
     .from("trait_options")
-    .select("id, category, label")
-    .order("category")
-    .order("label");
+    .select("category, value, label")
+    .order("category", { ascending: true })
+    .order("label", { ascending: true });
 
   if (error) throw error;
 
@@ -22,35 +21,45 @@ export async function fetchTraitOptionsGrouped(): Promise<TraitOptionByCategory>
     const cat = row.category as string;
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push({
-      id: row.id,
-      category: cat,
+      value: row.value as string,
       label: row.label as string,
     });
   }
   return byCategory;
 }
 
-export type ProfileTraitRow = {
-  user_id: string;
-  trait_option_id: string;
-  trait_options?: { id: string; category: string; label: string } | null;
+export type ProfileTraitSelection = {
+  category: string;
+  value: string;
+  label: string;
 };
 
-export async function fetchProfileTraits(userId: string): Promise<ProfileTraitRow[]> {
+export type ProfileTraitsResult = {
+  byCategory: Record<string, { value: string; label: string }>;
+  selected: ProfileTraitSelection[];
+};
+
+export async function fetchProfileTraits(userId: string): Promise<ProfileTraitsResult> {
   const { data, error } = await supabase
-    .from("profile_traits")
-    .select("user_id, trait_option_id, trait_options(id, category, label)")
+    .from("profile_traits_view")
+    .select("category, value, label")
     .eq("user_id", userId);
 
   if (error) throw error;
-  const rows: ProfileTraitRow[] = (data ?? []).map((row: Record<string, unknown>) => {
-    const opts = row.trait_options;
-    const single = Array.isArray(opts) ? opts[0] : opts;
-    return {
-      user_id: row.user_id as string,
-      trait_option_id: row.trait_option_id as string,
-      trait_options: single ? { id: (single as { id: string }).id, category: (single as { category: string }).category, label: (single as { label: string }).label } : null,
-    };
-  });
-  return rows;
+
+  const byCategory: Record<string, { value: string; label: string }> = {};
+  const selected: ProfileTraitSelection[] = [];
+
+  for (const row of data ?? []) {
+    const cat = row.category as string;
+    const value = row.value as string;
+    const label = row.label as string;
+    selected.push({ category: cat, value, label });
+    if (!byCategory[cat]) {
+      byCategory[cat] = { value, label };
+    }
+  }
+
+  return { byCategory, selected };
 }
+

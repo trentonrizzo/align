@@ -439,7 +439,7 @@ export default function Discover() {
                     >
                       <option value="">Select...</option>
                       {(traitOptionsByCategory.belief ?? []).map((o) => (
-                        <option key={o.id} value={o.label}>{o.label}</option>
+                        <option key={o.value} value={o.label}>{o.label}</option>
                       ))}
                     </select>
                   </label>
@@ -456,7 +456,7 @@ export default function Discover() {
                     >
                       <option value="">Select...</option>
                       {(traitOptionsByCategory.music ?? []).map((o) => (
-                        <option key={o.id} value={o.label}>{o.label}</option>
+                        <option key={o.value} value={o.label}>{o.label}</option>
                       ))}
                     </select>
                   </label>
@@ -473,7 +473,7 @@ export default function Discover() {
                     >
                       <option value="">Select...</option>
                       {(traitOptionsByCategory.politics ?? []).map((o) => (
-                        <option key={o.id} value={o.label}>{o.label}</option>
+                        <option key={o.value} value={o.label}>{o.label}</option>
                       ))}
                     </select>
                   </label>
