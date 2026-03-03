@@ -13,6 +13,24 @@
   color: #c00;
 }
 
+.trait-pill-skeleton-row {
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f3f3f3, #fafafa, #f3f3f3);
+  background-size: 200% 200%;
+  animation: trait-pill-shimmer 1.2s infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes trait-pill-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
 .trait-pill-section {
   display: grid;
   gap: 0.5rem;

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -12,18 +12,29 @@ import ProfileEdit from "./pages/ProfileEdit";
 import ProfilePhotos from "./pages/ProfilePhotos";
 import AppShell from "./components/AppShell";
 import { useAuth } from "./context/AuthContext";
+import { useProfileCompletion } from "./hooks/useProfileCompletion";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const { loading: profileLoading, complete } = useProfileCompletion(user?.id ?? null);
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>Loading...</div>
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        Setting up your profile...
+      </div>
     );
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  const inSetup = location.pathname.startsWith("/setup-profile");
+
+  if (user && !complete && !inSetup) {
+    return <Navigate to="/setup-profile" replace />;
   }
 
   return <AppShell />;

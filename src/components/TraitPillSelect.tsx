@@ -24,29 +24,35 @@ export function TraitPillSelect({ userId, onSelectionChange }: TraitPillSelectPr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [opts, traits] = await Promise.all([
+        fetchTraitOptionsGrouped(),
+        fetchProfileTraits(userId),
+      ]);
+      setOptionsByCategory(opts);
+      setSelected(traits);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `Could not load alignment traits: ${e.message}`
+          : "Could not load alignment traits."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [opts, traits] = await Promise.all([
-          fetchTraitOptionsGrouped(),
-          fetchProfileTraits(userId),
-        ]);
-        if (!cancelled) {
-          setOptionsByCategory(opts);
-          setSelected(traits);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+    (async () => {
+      if (cancelled) return;
+      await load();
+    })();
 
-    load();
     return () => {
       cancelled = true;
     };
@@ -110,9 +116,39 @@ export function TraitPillSelect({ userId, onSelectionChange }: TraitPillSelectPr
     });
   }
 
-  if (loading) return <p className="trait-pill-loading">Loading traits...</p>;
-  if (error) return <p className="trait-pill-error">{error}</p>;
-  if (!optionsByCategory) return null;
+  if (loading) {
+    return (
+      <div className="trait-pill-loading">
+        <div className="trait-pill-skeleton-row" />
+        <div className="trait-pill-skeleton-row" />
+        <div className="trait-pill-skeleton-row" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="trait-pill-error">
+        <p>{error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            void load();
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!optionsByCategory) {
+    return (
+      <div className="trait-pill-error">
+        <p>No alignment traits are configured yet.</p>
+      </div>
+    );
+  }
 
   const categories = ["belief", "music", "politics"] as const;
   const categoryLabels: Record<string, string> = {
